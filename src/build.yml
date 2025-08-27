@@ -1,0 +1,62 @@
+name: Build Element Desktop
+
+on:
+  push:
+    branches:
+      - custom-server
+  pull_request:
+    branches:
+      - custom-server
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Install dependencies (element-web)
+        working-directory: ./element-web
+        run: yarn install
+
+      - name: Build element-web
+        working-directory: ./element-web
+        run: yarn build
+
+      - name: Install dependencies (element-desktop)
+        run: yarn install
+
+      - name: Fetch element-web
+        run: yarn run fetch --import --cfgdir element.io
+
+      - name: Build element-desktop
+        run: yarn build
+
+      - name: Package for Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: yarn run package --linux
+
+      - name: Package for Windows
+        if: matrix.os == 'windows-latest'
+        run: yarn run package --win
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: element-desktop-${{ matrix.os }}
+          path: |
+            dist/element-desktop*.AppImage
+            dist/element-desktop*.exe
